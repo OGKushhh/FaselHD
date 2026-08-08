@@ -2,14 +2,13 @@
 """
 PyInstaller spec file for FaselHD (nfshd.exe)
 Bundles nfshd.py + mini_player.py into a single executable with icon.
+Chromium is NOT bundled — auto-installed on first run via ensure_chromium().
 
 Build:  pyinstaller nfshd.spec --noconfirm
 Clean:  rmdir /s /q build dist
 """
 
 import os
-import sys
-import glob
 
 block_cipher = None
 
@@ -23,48 +22,15 @@ if not os.path.isfile(ICON_PATH):
     print("  Build will proceed without icon. Add src/icon.ico to fix this.")
     ICON_PATH = None
 
-# ── Bundle Playwright Chromium browser files ──
-# Find where Playwright installed Chromium on this machine
-# Typically: %LOCALAPPDATA%\ms-playwright\chromium-xxxx\chrome-win\
-playwright_browser_datas = []
-pw_browsers_env = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', '')
-if sys.platform == 'win32':
-    default_pw_path = os.path.join(os.environ.get('LOCALAPPDATA', ''), 'ms-playwright')
-else:
-    default_pw_path = os.path.join(os.path.expanduser('~'), '.cache', 'ms-playwright')
-
-pw_path = pw_browsers_env if pw_browsers_env else default_pw_path
-
-if os.path.isdir(pw_path):
-    for entry in os.listdir(pw_path):
-        chromium_dir = os.path.join(pw_path, entry)
-        if entry.startswith('chromium') and os.path.isdir(chromium_dir):
-            # Found Chromium installation — bundle the chrome-win/ folder
-            for subdir in os.listdir(chromium_dir):
-                src = os.path.join(chromium_dir, subdir)
-                if os.path.isdir(src):
-                    # Bundle as: _playwright_browsers/chromium-xxxx/chrome-win/
-                    dest = os.path.join('_playwright_browsers', entry, subdir)
-                    playwright_browser_datas.append((src, dest))
-                    print(f"  Bundling Playwright browser: {src} -> {dest}")
-            break  # Only need the first (latest) chromium version
-
-if not playwright_browser_datas:
-    print("[WARNING] No Playwright Chromium found at", pw_path)
-    print("  Chromium will be auto-installed on first run.")
-    print("  To pre-bundle: run 'playwright install chromium' before building.")
-
-# ── Data files to bundle ──
-datas = [
-    (os.path.join(PROJECT_DIR, 'mini_player.py'), '.'),
-] + playwright_browser_datas
-
 # ── Analysis ──
 a = Analysis(
     [os.path.join(PROJECT_DIR, 'nfshd.py')],
     pathex=[PROJECT_DIR],
     binaries=[],
-    datas=datas,
+    datas=[
+        # Bundle mini_player.py so it can be launched as a subprocess
+        (os.path.join(PROJECT_DIR, 'mini_player.py'), '.'),
+    ],
     hiddenimports=[
         # ── Playwright core ──
         'playwright',
@@ -131,7 +97,7 @@ a = Analysis(
         'requests.adapters',
         'requests.cookies',
         'requests.models',
-        # ── scrapling (used in nfshd.py) ──
+        # ── scrapling ──
         'scrapling',
         'scrapling.fetcher',
         'scrapling.parser',
@@ -167,6 +133,7 @@ a = Analysis(
         'setuptools', 'pip',
         'test', 'tests',
         'pyqt5', 'pyside6', 'PySide6', 'PyQt6',
+        'tkinter',  # mini_player uses it lazily — not needed in main EXE
     ],
     noarchive=False,
     cipher=block_cipher,

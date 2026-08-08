@@ -5,6 +5,15 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      changelog:
+        description: 'Release notes (optional — auto-generated from commits if empty)'
+        required: false
+        default: ''
+      version:
+        description: 'Version tag (e.g. v1.0) — only used for manual releases'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -29,86 +38,97 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Install Playwright Chromium
-        run: |
-          playwright install chromium
-          playwright install-deps chromium
-
-      - name: Verify icon exists
+      - name: Verify icon
         shell: pwsh
         run: |
-          if (Test-Path src\icon.ico) {
-            Write-Host "Found src\icon.ico"
-          } else {
-            Write-Host "[WARNING] src\icon.ico not found — building without icon"
-          }
+          if (Test-Path src\icon.ico) { Write-Host "Found icon.ico" }
+          else { Write-Host "[WARN] No icon.ico" }
 
-      - name: Build EXE with PyInstaller
+      - name: Build EXE
         run: pyinstaller nfshd.spec --noconfirm
 
-      - name: Verify EXE exists
+      - name: Verify EXE
         shell: pwsh
         run: |
           if (Test-Path dist\nfshd.exe) {
-            Write-Host "nfshd.exe built successfully"
-            Get-Item dist\nfshd.exe | Format-List Name,Length
+            $size = (Get-Item dist\nfshd.exe).Length / 1MB
+            Write-Host "nfshd.exe built — $([math]::Round($size, 1)) MB"
           } else {
-            Write-Error "ERROR: nfshd.exe not found in dist/"
+            Write-Error "nfshd.exe not found!"
             exit 1
           }
 
-      - name: Create ZIP archive
+      - name: ZIP
         shell: pwsh
-        run: |
-          Compress-Archive -Path dist\nfshd.exe -DestinationPath dist\nfshd.zip -Force
+        run: Compress-Archive -Path dist\nfshd.exe -DestinationPath dist\nfshd.zip -Force
 
-      - name: Upload EXE artifact
+      - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
           name: nfshd-windows
           path: dist/nfshd.exe
           retention-days: 30
 
-      - name: Upload ZIP artifact
+      - name: Upload ZIP
         uses: actions/upload-artifact@v4
         with:
           name: nfshd-windows-zip
           path: dist/nfshd.zip
           retention-days: 30
 
-      # ── Release: only on version tags (v1.0, v2.1, etc.) ──
-      - name: Generate changelog from commits
-        if: startsWith(github.ref, 'refs/tags/v')
-        id: changelog
+      # ── Release ──
+      - name: Determine version
+        id: ver
+        shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
-          $prevTag = git describe --tags --abbrev=0 HEAD^ 2>$null
-          if ($LASTEXITCODE -ne 0) { $prevTag = "" }
-          if ($prevTag) {
-            $log = git log "$prevTag..HEAD" --pretty=format:"- %s (%h)" --no-merges
+          if ("${{ github.ref_name }}" -match "^v") {
+            echo "TAG=${{ github.ref_name }}" >> $env:GITHUB_OUTPUT
+          } elseif ("${{ inputs.version }}" -ne "") {
+            echo "TAG=${{ inputs.version }}" >> $env:GITHUB_OUTPUT
           } else {
-            $log = git log --pretty=format:"- %s (%h)" --no-merges -20
+            echo "TAG=" >> $env:GITHUB_OUTPUT
           }
-          echo "BODY=$log" | Out-File -Append $env:GITHUB_ENV
-          echo "VERSION=$tag" | Out-File -Append $env:GITHUB_ENV
 
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Generate changelog
+        id: cl
+        shell: pwsh
+        run: |
+          $custom = "${{ inputs.changelog }}"
+          if ($custom -ne "") {
+            # Manual changelog provided
+            echo "BODY<<EOF" >> $env:GITHUB_OUTPUT
+            echo "$custom" >> $env:GITHUB_OUTPUT
+            echo "EOF" >> $env:GITHUB_OUTPUT
+          } else {
+            # Auto-generate from git commits
+            $tag = "${{ steps.ver.outputs.TAG }}"
+            $prevTag = ""
+            try { $prevTag = git describe --tags --abbrev=0 HEAD^ 2>$null } catch {}
+            if ($prevTag -and $tag) {
+              $log = git log "$prevTag..HEAD" --pretty=format:"- %s" --no-merges
+            } else {
+              $log = git log --pretty=format:"- %s" --no-merges -20
+            }
+            echo "BODY<<EOF" >> $env:GITHUB_OUTPUT
+            echo "$log" >> $env:GITHUB_OUTPUT
+            echo "EOF" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Create Release
+        if: steps.ver.outputs.TAG != ''
         uses: softprops/action-gh-release@v2
         with:
-          name: nfshd ${{ env.VERSION }}
+          tag_name: ${{ steps.ver.outputs.TAG }}
+          name: nfshd ${{ steps.ver.outputs.TAG }}
           body: |
-            ## nfshd ${{ env.VERSION }}
+            ## nfshd ${{ steps.ver.outputs.TAG }}
 
-            FaselHD CLI — search, browse, and stream movies/series directly to your player.
-
-            ### Changes
-            ${{ env.BODY }}
+            ${{ steps.cl.outputs.BODY }}
 
             ### How to use
-            1. Download `nfshd.exe` (or `nfshd.zip`)
-            2. Run it — requires [VLC](https://www.videolan.org/) or [mpv](https://mpv.io/) for playback
-            3. Chromium is embedded — no separate browser install needed
+            1. Download `nfshd.exe`
+            2. Run it — Chromium installs automatically on first launch
+            3. Requires [VLC](https://www.videolan.org/) or [mpv](https://mpv.io/) for playback
           files: |
             dist/nfshd.exe
             dist/nfshd.zip
