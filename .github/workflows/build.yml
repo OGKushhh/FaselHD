@@ -35,30 +35,32 @@ jobs:
           playwright install-deps chromium
 
       - name: Verify icon exists
+        shell: pwsh
         run: |
-          if exist src\icon.ico (
-            echo Found src\icon.ico
-          ) else (
-            echo [WARNING] src\icon.ico not found — building without icon
-          )
+          if (Test-Path src\icon.ico) {
+            Write-Host "Found src\icon.ico"
+          } else {
+            Write-Host "[WARNING] src\icon.ico not found — building without icon"
+          }
 
       - name: Build EXE with PyInstaller
         run: pyinstaller nfshd.spec --noconfirm
 
       - name: Verify EXE exists
+        shell: pwsh
         run: |
-          if exist dist\nfshd.exe (
-            echo nfshd.exe built successfully
-            dir dist\nfshd.exe
-          ) else (
-            echo ERROR: nfshd.exe not found in dist/
+          if (Test-Path dist\nfshd.exe) {
+            Write-Host "nfshd.exe built successfully"
+            Get-Item dist\nfshd.exe | Format-List Name,Length
+          } else {
+            Write-Error "ERROR: nfshd.exe not found in dist/"
             exit 1
-          )
+          }
 
       - name: Create ZIP archive
+        shell: pwsh
         run: |
-          cd dist
-          powershell Compress-Archive -Path nfshd.exe -DestinationPath nfshd.zip
+          Compress-Archive -Path dist\nfshd.exe -DestinationPath dist\nfshd.zip -Force
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
