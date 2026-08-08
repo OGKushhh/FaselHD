@@ -437,23 +437,55 @@ def stream_to_player(m3u8_url, player_path=None):
 
 def launch_mini_player(m3u8_url, title=""):
     """Launch the built-in FaselHD Mini Player. Pass title for window caption."""
-    mini_player_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mini_player.py")
     if hasattr(sys, '_MEIPASS'):
+        # Frozen EXE: extract mini_player.py from bundle
         mini_player_script = os.path.join(sys._MEIPASS, "mini_player.py")
+    else:
+        # Normal Python: find next to nfshd.py
+        mini_player_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mini_player.py")
 
-    # Try to use the mini player
-    try:
-        cmd = [sys.executable, mini_player_script, m3u8_url]
-        if title:
-            cmd.append(title)
-        subprocess.Popen(cmd)
-        console.print("[green]Launching FaselHD Mini Player...[/green]")
-        return True
-    except Exception as e:
-        console.print(f"[red]Could not launch Mini Player: {e}[/red]")
-        console.print("[yellow]Falling back to system default player...[/yellow]")
+    if getattr(sys, 'frozen', False):
+        # When frozen, sys.executable is nfshd.exe — not Python.
+        # Try to find a system Python to run mini_player.py
+        python_cmd = None
+        for cmd in ['python', 'python3', 'py']:
+            try:
+                r = subprocess.run([cmd, "--version"], capture_output=True, timeout=5)
+                if r.returncode == 0:
+                    python_cmd = cmd
+                    break
+            except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+                continue
+
+        if python_cmd:
+            try:
+                cmd = [python_cmd, mini_player_script, m3u8_url]
+                if title:
+                    cmd.append(title)
+                subprocess.Popen(cmd)
+                console.print("[green]Launching FaselHD Mini Player...[/green]")
+                return True
+            except Exception as e:
+                console.print(f"[red]Could not launch Mini Player: {e}[/red]")
+
+        # No Python found — fall back to opening URL in default player
+        console.print("[yellow]Python not found — opening in system default player...[/yellow]")
         os.startfile(m3u8_url)
         return True
+    else:
+        # Normal Python environment
+        try:
+            cmd = [sys.executable, mini_player_script, m3u8_url]
+            if title:
+                cmd.append(title)
+            subprocess.Popen(cmd)
+            console.print("[green]Launching FaselHD Mini Player...[/green]")
+            return True
+        except Exception as e:
+            console.print(f"[red]Could not launch Mini Player: {e}[/red]")
+            console.print("[yellow]Falling back to system default player...[/yellow]")
+            os.startfile(m3u8_url)
+            return True
 
 
 # ===================== Setup: ffmpeg via pip, Chromium via Playwright =====================
@@ -492,8 +524,47 @@ def ensure_ffmpeg():
     console.print("[dim]Or download ffmpeg manually and add it to your system PATH.[/dim]")
     return None
 
+def _install_chromium_frozen():
+    """Install Playwright Chromium when running as a frozen EXE.
+    sys.executable is nfshd.exe (not Python), so we can't use 'python -m playwright install'.
+    Instead we import playwright's own CLI module and call it directly."""
+    # Set PLAYWRIGHT_BROWSERS_PATH to a persistent location next to the EXE
+    exe_dir = os.path.dirname(sys.executable)
+    browsers_dir = os.path.join(exe_dir, ".playwright-browsers")
+    os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", browsers_dir)
+    try:
+        from playwright.cli.main import main as pw_cli_main
+        old_argv = sys.argv
+        sys.argv = ["playwright", "install", "chromium"]
+        pw_cli_main()
+        sys.argv = old_argv
+        console.print("[green]Chromium installed successfully.[/green]")
+    except SystemExit:
+        # pw_cli_main calls sys.exit — that's fine, means it ran
+        sys.argv = old_argv if 'old_argv' in dir() else sys.argv
+        console.print("[green]Chromium installed successfully.[/green]")
+    except Exception as e:
+        console.print(f"[red]Failed to auto-install Chromium: {e}[/red]")
+        console.print("[yellow]Run manually: playwright install chromium[/yellow]")
+
+
+def _install_chromium_normal():
+    """Install Playwright Chromium in normal Python environment."""
+    subprocess.run(
+        [sys.executable, "-m", "playwright", "install", "chromium"],
+        check=True
+    )
+    console.print("[green]Chromium installed successfully.[/green]")
+
+
 def ensure_chromium():
-    """Ensure Playwright's Chromium browser is installed via standard playwright CLI."""
+    """Ensure Playwright's Chromium browser is installed."""
+    # When bundled as EXE, set PLAYWRIGHT_BROWSERS_PATH to _MEIPASS
+    # so it finds the pre-bundled Chromium (if spec included it)
+    if getattr(sys, 'frozen', False):
+        bundled_browsers = os.path.join(sys._MEIPASS, '_playwright_browsers')
+        if os.path.isdir(bundled_browsers):
+            os.environ["PLAYWRIGHT_BROWSERS_PATH"] = bundled_browsers
     try:
         from playwright.sync_api import sync_playwright
         pw = sync_playwright().start()
@@ -501,20 +572,19 @@ def ensure_chromium():
             browser = pw.chromium.launch(headless=True)
             browser.close()
         except Exception:
-            # Browser not installed — run playwright install
+            # Browser not installed — install it
             console.print("[blue]Installing Chromium via Playwright (first time only)...[/blue]")
             pw.stop()
-            subprocess.run(
-                [sys.executable, "-m", "playwright", "install", "chromium"],
-                check=True
-            )
-            console.print("[green]Chromium installed successfully.[/green]")
+            if getattr(sys, 'frozen', False):
+                _install_chromium_frozen()
+            else:
+                _install_chromium_normal()
             return
         pw.stop()
         console.print("[green]Chromium is already installed.[/green]")
     except Exception as e:
         console.print(f"[red]Error setting up Chromium: {e}[/red]")
-        console.print("[yellow]Try running manually:[/yellow] [cyan]python -m playwright install chromium[/cyan]")
+        console.print("[yellow]Try running manually:[/yellow] [cyan]playwright install chromium[/cyan]")
 
 
 
