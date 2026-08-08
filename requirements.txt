@@ -1,7 +1,13 @@
 setuptools
+requests
 beautifulsoup4
 bs4
+lxml
 playwright
 rich
-subprocess.run
 m3u8downloader
+imageio-ffmpeg>=0.4.9
+python-vlc>=3.0.18
+pyperclip
+scrapling[all]>=0.4.12
+curl_cffi>=0.7.0
