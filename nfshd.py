@@ -491,13 +491,16 @@ def launch_mini_player(m3u8_url, title=""):
 # ===================== Setup: ffmpeg via pip, Chromium via Playwright =====================
 
 def get_ffmpeg_path():
-    """Get ffmpeg executable path from imageio-ffmpeg package."""
+    """Get ffmpeg executable path from imageio-ffmpeg package or system PATH."""
+    # Try imageio-ffmpeg bundle
     try:
         import imageio_ffmpeg
-        return imageio_ffmpeg.get_ffmpeg_exe()
-    except ImportError:
+        exe_path = imageio_ffmpeg.get_ffmpeg_exe()
+        if exe_path and os.path.isfile(exe_path):
+            return exe_path
+    except Exception:
         pass
-    # Fallback: check if ffmpeg is on system PATH
+    # Check system PATH
     try:
         result = subprocess.run(["where", "ffmpeg"], capture_output=True, text=True, timeout=5)
         if result.returncode == 0:
@@ -524,67 +527,51 @@ def ensure_ffmpeg():
     console.print("[dim]Or download ffmpeg manually and add it to your system PATH.[/dim]")
     return None
 
-def _install_chromium_frozen():
-    """Install Playwright Chromium when running as a frozen EXE.
-    sys.executable is nfshd.exe (not Python), so we can't use 'python -m playwright install'.
-    Instead we import playwright's own CLI module and call it directly."""
-    # Set PLAYWRIGHT_BROWSERS_PATH to a persistent location next to the EXE
-    exe_dir = os.path.dirname(sys.executable)
-    browsers_dir = os.path.join(exe_dir, ".playwright-browsers")
-    os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", browsers_dir)
-    try:
-        from playwright.cli.main import main as pw_cli_main
-        old_argv = sys.argv
-        sys.argv = ["playwright", "install", "chromium"]
-        pw_cli_main()
-        sys.argv = old_argv
-        console.print("[green]Chromium installed successfully.[/green]")
-    except SystemExit:
-        # pw_cli_main calls sys.exit — that's fine, means it ran
-        sys.argv = old_argv if 'old_argv' in dir() else sys.argv
-        console.print("[green]Chromium installed successfully.[/green]")
-    except Exception as e:
-        console.print(f"[red]Failed to auto-install Chromium: {e}[/red]")
-        console.print("[yellow]Run manually: playwright install chromium[/yellow]")
-
-
-def _install_chromium_normal():
-    """Install Playwright Chromium in normal Python environment."""
-    subprocess.run(
-        [sys.executable, "-m", "playwright", "install", "chromium"],
-        check=True
-    )
-    console.print("[green]Chromium installed successfully.[/green]")
-
-
 def ensure_chromium():
-    """Ensure Playwright's Chromium browser is installed."""
-    # When bundled as EXE, set PLAYWRIGHT_BROWSERS_PATH to _MEIPASS
-    # so it finds the pre-bundled Chromium (if spec included it)
+    """Ensure Playwright's Chromium browser is installed.
+    In frozen EXE, Chromium is auto-installed on first run next to the EXE."""
+    # When frozen, use a persistent browsers dir next to the EXE
     if getattr(sys, 'frozen', False):
-        bundled_browsers = os.path.join(sys._MEIPASS, '_playwright_browsers')
-        if os.path.isdir(bundled_browsers):
-            os.environ["PLAYWRIGHT_BROWSERS_PATH"] = bundled_browsers
+        exe_dir = os.path.dirname(sys.executable)
+        browsers_dir = os.path.join(exe_dir, ".playwright-browsers")
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browsers_dir
+    # Check if Chromium is already installed
     try:
         from playwright.sync_api import sync_playwright
         pw = sync_playwright().start()
         try:
             browser = pw.chromium.launch(headless=True)
             browser.close()
-        except Exception:
-            # Browser not installed — install it
-            console.print("[blue]Installing Chromium via Playwright (first time only)...[/blue]")
             pw.stop()
-            if getattr(sys, 'frozen', False):
-                _install_chromium_frozen()
-            else:
-                _install_chromium_normal()
+            console.print("[green]Chromium is ready.[/green]")
             return
-        pw.stop()
-        console.print("[green]Chromium is already installed.[/green]")
+        except Exception:
+            pw.stop()
+    except Exception:
+        pass
+    # Not installed — install it
+    console.print("[blue]Installing Chromium (first time only, this may take a minute)...[/blue]")
+    try:
+        if getattr(sys, 'frozen', False):
+            # Frozen EXE: use playwright CLI module directly
+            from playwright.cli.main import main as pw_cli_main
+            old_argv = sys.argv
+            sys.argv = ["playwright", "install", "chromium"]
+            try:
+                pw_cli_main()
+            except SystemExit:
+                pass
+            sys.argv = old_argv
+        else:
+            # Normal Python: use pip module
+            subprocess.run(
+                [sys.executable, "-m", "playwright", "install", "chromium"],
+                check=True
+            )
+        console.print("[green]Chromium installed successfully.[/green]")
     except Exception as e:
-        console.print(f"[red]Error setting up Chromium: {e}[/red]")
-        console.print("[yellow]Try running manually:[/yellow] [cyan]playwright install chromium[/cyan]")
+        console.print(f"[red]Failed to install Chromium: {e}[/red]")
+        console.print("[yellow]The app will still work but video extraction may fail.[/yellow]")
 
 
 

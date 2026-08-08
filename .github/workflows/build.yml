@@ -58,22 +58,11 @@ jobs:
             exit 1
           }
 
-      - name: ZIP
-        shell: pwsh
-        run: Compress-Archive -Path dist\nfshd.exe -DestinationPath dist\nfshd.zip -Force
-
       - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
           name: nfshd-windows
           path: dist/nfshd.exe
-          retention-days: 30
-
-      - name: Upload ZIP
-        uses: actions/upload-artifact@v4
-        with:
-          name: nfshd-windows-zip
-          path: dist/nfshd.zip
           retention-days: 30
 
       # ── Release ──
@@ -131,6 +120,5 @@ jobs:
             3. Requires [VLC](https://www.videolan.org/) or [mpv](https://mpv.io/) for playback
           files: |
             dist/nfshd.exe
-            dist/nfshd.zip
           draft: false
           prerelease: false
