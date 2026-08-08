@@ -488,11 +488,28 @@ def launch_mini_player(m3u8_url, title=""):
             return True
 
 
-# ===================== Setup: ffmpeg via pip, Chromium via Playwright =====================
+# ===================== Setup: ffmpeg (auto-download on first run) + Chromium via Playwright =====================
+
+_FFMPEG_VERSION = "7.1"
+_FFMPEG_URL = f"https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essential.zip"
+_FFMPEG_EXE_NAME = "ffmpeg.exe"
+
+def _get_ffmpeg_dir():
+    """Get the persistent ffmpeg cache directory (next to EXE in frozen mode)."""
+    if getattr(sys, 'frozen', False):
+        d = os.path.join(os.path.dirname(sys.executable), ".ffmpeg")
+    else:
+        d = os.path.join(os.path.expanduser("~"), ".faselhd_ffmpeg")
+    os.makedirs(d, exist_ok=True)
+    return d
 
 def get_ffmpeg_path():
-    """Get ffmpeg executable path from imageio-ffmpeg package or system PATH."""
-    # Try imageio-ffmpeg bundle
+    """Find ffmpeg: bundled cache → imageio-ffmpeg → system PATH."""
+    # 1. Check our own cache (downloaded on first run)
+    cached = os.path.join(_get_ffmpeg_dir(), _FFMPEG_EXE_NAME)
+    if os.path.isfile(cached):
+        return cached
+    # 2. Check imageio-ffmpeg package (normal Python only)
     try:
         import imageio_ffmpeg
         exe_path = imageio_ffmpeg.get_ffmpeg_exe()
@@ -500,7 +517,7 @@ def get_ffmpeg_path():
             return exe_path
     except Exception:
         pass
-    # Check system PATH
+    # 3. Check system PATH
     try:
         result = subprocess.run(["where", "ffmpeg"], capture_output=True, text=True, timeout=5)
         if result.returncode == 0:
@@ -512,19 +529,78 @@ def get_ffmpeg_path():
 _ffmpeg_cached_path = None
 
 
+def _download_ffmpeg():
+    """Download ffmpeg.exe to the cache directory. Returns path or None."""
+    import zipfile
+    import io
+    cache_dir = _get_ffmpeg_dir()
+    target = os.path.join(cache_dir, _FFMPEG_EXE_NAME)
+
+    console.print(f"[blue]Downloading ffmpeg (first time only)...[/blue]")
+    try:
+        resp = requests.get(_FFMPEG_URL, stream=True, timeout=60)
+        resp.raise_for_status()
+        total = int(resp.headers.get('content-length', 0))
+        downloaded = 0
+        chunk_size = 8192
+        zip_bytes = io.BytesIO()
+        for chunk in resp.iter_content(chunk_size=chunk_size):
+            zip_bytes.write(chunk)
+            downloaded += len(chunk)
+            if total > 0:
+                pct = downloaded * 100 // total
+                mb = downloaded / (1024 * 1024)
+                print(f"\r  Downloading: {mb:.1f} MB ({pct}%)", end="", flush=True)
+        print()  # newline after progress
+
+        # Extract only ffmpeg.exe from the zip
+        console.print("[blue]Extracting ffmpeg.exe...[/blue]")
+        with zipfile.ZipFile(zip_bytes) as zf:
+            for name in zf.namelist():
+                if name.lower().endswith(_FFMPEG_EXE_NAME):
+                    # Preserve folder structure — find the bin/ subfolder
+                    source = zf.open(name)
+                    with open(target, 'wb') as dest:
+                        while True:
+                            chunk = source.read(8192)
+                            if not chunk:
+                                break
+                            dest.write(chunk)
+                    break
+        zip_bytes.close()
+
+        if os.path.isfile(target):
+            size_mb = os.path.getsize(target) / (1024 * 1024)
+            console.print(f"[green]ffmpeg installed successfully ({size_mb:.1f} MB).[/green]")
+            return target
+        else:
+            console.print("[red]ffmpeg.exe not found inside the archive.[/red]")
+            return None
+    except Exception as e:
+        console.print(f"[red]Failed to download ffmpeg: {e}[/red]")
+        return None
+
+
 def ensure_ffmpeg():
-    """Ensure ffmpeg is available. Returns path or None (cached after first call)."""
+    """Ensure ffmpeg is available. Auto-downloads on first run if needed.
+    Returns path or None (cached after first call)."""
     global _ffmpeg_cached_path
     if _ffmpeg_cached_path is not None:
-        return _ffmpeg_cached_path
+        return _ffmpeg_cached_path if _ffmpeg_cached_path else None
+
     ffmpeg_path = get_ffmpeg_path()
     if ffmpeg_path and os.path.isfile(ffmpeg_path):
         _ffmpeg_cached_path = ffmpeg_path
         return ffmpeg_path
+
+    # Not found — try to auto-download
+    downloaded = _download_ffmpeg()
+    if downloaded:
+        _ffmpeg_cached_path = downloaded
+        return downloaded
+
     _ffmpeg_cached_path = False
-    console.print("[yellow]ffmpeg not found. Install it with:[/yellow]")
-    console.print("  [cyan]pip install imageio-ffmpeg[/cyan]")
-    console.print("[dim]Or download ffmpeg manually and add it to your system PATH.[/dim]")
+    console.print("[yellow]ffmpeg not available. Downloads will use fallback method.[/yellow]")
     return None
 
 def ensure_chromium():

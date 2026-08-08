@@ -106,8 +106,7 @@ a = Analysis(
         'curl_cffi',
         'curl_cffi.requests',
         'curl_cffi.const',
-        # ── imageio-ffmpeg ──
-        'imageio_ffmpeg',
+        # ── imageio-ffmpeg (NOT bundled — auto-downloaded on first run) ──
         # ── asyncio internals ──
         'asyncio',
         'asyncio.events',
@@ -133,7 +132,8 @@ a = Analysis(
         'setuptools', 'pip',
         'test', 'tests',
         'pyqt5', 'pyside6', 'PySide6', 'PyQt6',
-        'tkinter',  # mini_player uses it lazily — not needed in main EXE
+        'tkinter',
+        'imageio', 'imageio_ffmpeg',  # ffmpeg auto-downloaded on first run
     ],
     noarchive=False,
     cipher=block_cipher,
