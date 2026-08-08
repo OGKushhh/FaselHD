@@ -95,8 +95,6 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, TimeRemainingColu
 from rich.text import Text
 from rich.table import Table
 from rich.panel import Panel
-if hasattr(sys, '_MEIPASS'):
-    os.environ["PLAYWRIGHT_CLI_EXECUTABLE"] = os.path.join(sys._MEIPASS, "playwright.exe")
 from playwright.async_api import async_playwright
 
 console = Console(force_terminal=True, legacy_windows=False)
@@ -437,55 +435,19 @@ def stream_to_player(m3u8_url, player_path=None):
 
 def launch_mini_player(m3u8_url, title=""):
     """Launch the built-in FaselHD Mini Player. Pass title for window caption."""
-    if hasattr(sys, '_MEIPASS'):
-        # Frozen EXE: extract mini_player.py from bundle
-        mini_player_script = os.path.join(sys._MEIPASS, "mini_player.py")
-    else:
-        # Normal Python: find next to nfshd.py
-        mini_player_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mini_player.py")
-
-    if getattr(sys, 'frozen', False):
-        # When frozen, sys.executable is nfshd.exe — not Python.
-        # Try to find a system Python to run mini_player.py
-        python_cmd = None
-        for cmd in ['python', 'python3', 'py']:
-            try:
-                r = subprocess.run([cmd, "--version"], capture_output=True, timeout=5)
-                if r.returncode == 0:
-                    python_cmd = cmd
-                    break
-            except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
-                continue
-
-        if python_cmd:
-            try:
-                cmd = [python_cmd, mini_player_script, m3u8_url]
-                if title:
-                    cmd.append(title)
-                subprocess.Popen(cmd)
-                console.print("[green]Launching FaselHD Mini Player...[/green]")
-                return True
-            except Exception as e:
-                console.print(f"[red]Could not launch Mini Player: {e}[/red]")
-
-        # No Python found — fall back to opening URL in default player
-        console.print("[yellow]Python not found — opening in system default player...[/yellow]")
+    mini_player_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mini_player.py")
+    try:
+        cmd = [sys.executable, mini_player_script, m3u8_url]
+        if title:
+            cmd.append(title)
+        subprocess.Popen(cmd)
+        console.print("[green]Launching FaselHD Mini Player...[/green]")
+        return True
+    except Exception as e:
+        console.print(f"[red]Could not launch Mini Player: {e}[/red]")
+        console.print("[yellow]Falling back to system default player...[/yellow]")
         os.startfile(m3u8_url)
         return True
-    else:
-        # Normal Python environment
-        try:
-            cmd = [sys.executable, mini_player_script, m3u8_url]
-            if title:
-                cmd.append(title)
-            subprocess.Popen(cmd)
-            console.print("[green]Launching FaselHD Mini Player...[/green]")
-            return True
-        except Exception as e:
-            console.print(f"[red]Could not launch Mini Player: {e}[/red]")
-            console.print("[yellow]Falling back to system default player...[/yellow]")
-            os.startfile(m3u8_url)
-            return True
 
 
 # ===================== Setup: ffmpeg (auto-download on first run) + Chromium via Playwright =====================
@@ -495,11 +457,8 @@ _FFMPEG_URL = f"https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essential.zip"
 _FFMPEG_EXE_NAME = "ffmpeg.exe"
 
 def _get_ffmpeg_dir():
-    """Get the persistent ffmpeg cache directory (next to EXE in frozen mode)."""
-    if getattr(sys, 'frozen', False):
-        d = os.path.join(os.path.dirname(sys.executable), ".ffmpeg")
-    else:
-        d = os.path.join(os.path.expanduser("~"), ".faselhd_ffmpeg")
+    """Get the persistent ffmpeg cache directory."""
+    d = os.path.join(os.path.expanduser("~"), ".faselhd_ffmpeg")
     os.makedirs(d, exist_ok=True)
     return d
 
@@ -604,14 +563,7 @@ def ensure_ffmpeg():
     return None
 
 def ensure_chromium():
-    """Ensure Playwright's Chromium browser is installed.
-    In frozen EXE, Chromium is auto-installed on first run next to the EXE."""
-    # When frozen, use a persistent browsers dir next to the EXE
-    if getattr(sys, 'frozen', False):
-        exe_dir = os.path.dirname(sys.executable)
-        browsers_dir = os.path.join(exe_dir, ".playwright-browsers")
-        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = browsers_dir
-    # Check if Chromium is already installed
+    """Ensure Playwright's Chromium browser is installed."""
     try:
         from playwright.sync_api import sync_playwright
         pw = sync_playwright().start()
@@ -628,22 +580,10 @@ def ensure_chromium():
     # Not installed — install it
     console.print("[blue]Installing Chromium (first time only, this may take a minute)...[/blue]")
     try:
-        if getattr(sys, 'frozen', False):
-            # Frozen EXE: use playwright CLI module directly
-            from playwright.cli.main import main as pw_cli_main
-            old_argv = sys.argv
-            sys.argv = ["playwright", "install", "chromium"]
-            try:
-                pw_cli_main()
-            except SystemExit:
-                pass
-            sys.argv = old_argv
-        else:
-            # Normal Python: use pip module
-            subprocess.run(
-                [sys.executable, "-m", "playwright", "install", "chromium"],
-                check=True
-            )
+        subprocess.run(
+            [sys.executable, "-m", "playwright", "install", "chromium"],
+            check=True
+        )
         console.print("[green]Chromium installed successfully.[/green]")
     except Exception as e:
         console.print(f"[red]Failed to install Chromium: {e}[/red]")
@@ -1513,9 +1453,7 @@ class FaselHDApp:
             output_path = os.path.expanduser(f"~/Downloads/{movie_name}_{quality}.mp4")
             ffmpeg_path = ensure_ffmpeg()
             downloadm3u8_path = None
-            if hasattr(sys, '_MEIPASS'):
-                downloadm3u8_path = os.path.join(sys._MEIPASS, "downloadm3u8.exe")
-            elif os.path.isfile("downloadm3u8.exe"):
+            if os.path.isfile("downloadm3u8.exe"):
                 downloadm3u8_path = "downloadm3u8.exe"
 
             if downloadm3u8_path:
@@ -1695,9 +1633,7 @@ class FaselHDApp:
                     output_path = os.path.expanduser(f"~/Downloads/{video_name}_{ep_quality}.mp4")
                     ffmpeg_path = ensure_ffmpeg()
                     dl_tool = None
-                    if hasattr(sys, '_MEIPASS'):
-                        dl_tool = os.path.join(sys._MEIPASS, "downloadm3u8.exe")
-                    elif os.path.isfile("downloadm3u8.exe"):
+                    if os.path.isfile("downloadm3u8.exe"):
                         dl_tool = "downloadm3u8.exe"
 
                     if dl_tool:
