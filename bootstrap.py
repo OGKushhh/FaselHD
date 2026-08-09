@@ -275,10 +275,10 @@ def _download_embedded_python():
 
 
 def _check_missing_requirements(py):
-    """Check which requirements are missing. Returns list of package names."""
+    """Check which requirements are missing. Returns (missing_names, req_path)."""
     req_path = bundled_path("requirements.txt")
     if not os.path.isfile(req_path):
-        return []
+        return [], req_path
 
     missing = []
     try:
@@ -304,9 +304,9 @@ def _check_missing_requirements(py):
                     missing.append(line)
     except Exception:
         # If we can't check, install everything
-        return ["ALL"]
+        return ["ALL"], req_path
 
-    return missing
+    return missing, req_path
 
 
 def _check_chromium(py):
@@ -352,16 +352,14 @@ def setup():
         print(f"  Missing {len(missing)} package(s): {', '.join(missing[:5])}"
               + (f" +{len(missing)-5} more" if len(missing) > 5 else ""))
         print("  Installing missing dependencies ...")
-        req = bundled_path("requirements.txt")
-        _run([py, "-m", "pip", "install", "-r", req,
-              "--no-warn-script-location", "--no-cache-dir"])
+        _run([py, "-m", "pip", "install"] + missing +
+              ["--no-warn-script-location"])
     elif missing == ["ALL"]:
         print("  Installing all dependencies (could not check) ...")
-        req = bundled_path("requirements.txt")
-        _run([py, "-m", "pip", "install", "-r", req,
-              "--no-warn-script-location", "--no-cache-dir"])
+        _run([py, "-m", "pip", "install", "-r", req_path,
+              "--no-warn-script-location"])
     else:
-        print("  All dependencies already installed ✓")
+        print("  All dependencies already installed")
 
     # ── 3. Check & install Chromium ──
     print("\n  Checking Chromium browser ...")
