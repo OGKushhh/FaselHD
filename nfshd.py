@@ -688,38 +688,6 @@ FASEL_BASE_URL = "https://www.fasel-hd.cam/"
 CACHE_DIR = ".cache"
 CACHE_TTL = 300  # 5 minutes TTL for search cache
 
-# ── Category metadata from URL slugs ──
-_CATEGORY_META = {
-    "movies":            ("🎬", "Movies"),
-    "tvshows":           ("📺", "TV Shows"),
-    "asian-movies":      ("🎞️", "Asian Movies"),
-    "asian-series":      ("📺", "Asian Series"),
-    "dubbed-movies":     ("🗣️", "Dubbed"),
-    "anime":             ("🎌", "Anime"),
-    "anime-movies":      ("🎌", "Anime Movies"),
-    "hindi":             ("🎬", "Hindi"),
-    "movies_collections": ("🎥", "Collections"),
-    "series":            ("📺", "Series"),
-}
-
-
-def _extract_category(url: str):
-    """Extract category icon and label from a FaselHD URL.
-    Returns (icon, label) tuple, e.g. ('🎬', 'Movies').
-    Falls back to ('🎬', 'Movies') if unrecognized."""
-    try:
-        from urllib.parse import urlparse
-        path = urlparse(url).path.strip('/')
-        # URL format: /category/slug/ or /category/slug
-        parts = [p for p in path.split('/') if p and p != FASEL_BASE_URL.rstrip('/')]
-        if parts:
-            slug = parts[0].lower()
-            if slug in _CATEGORY_META:
-                return _CATEGORY_META[slug]
-    except Exception:
-        pass
-    return ("🎬", "Movies")
-
 
 def _cache_key(query: str) -> str:
     """Generate a filesystem-safe cache key from a search query."""
@@ -1356,17 +1324,13 @@ class FaselHDApp:
             console.print("[red]No results found.[/red]")
             return True
 
-        # Build Rich table with category metadata
         table = Table(title="Search Results", title_style="bold magenta",
                        border_style="dim", show_lines=False, pad_edge=False)
         table.add_column("#", style="blue", justify="center", width=4)
-        table.add_column("", width=3)  # icon column
         table.add_column("Title", style="white", min_width=30)
-        table.add_column("Category", style="dim", justify="right")
 
         for idx, (title, url) in enumerate(results, 1):
-            icon, cat_label = _extract_category(url)
-            table.add_row(str(idx), icon, title, cat_label)
+            table.add_row(str(idx), title)
 
         console.print(table)
         try:
@@ -1900,7 +1864,7 @@ class FaselHDApp:
                     console.print("[red]Invalid choice![/red]")
 
     async def _show_trending_and_pick(self):
-        """Fetch and display trending with category metadata. Returns (title, url) or None."""
+        """Fetch and display trending. Returns (title, url) or None."""
         console.print("[cyan]Loading trending...[/cyan]")
         trending = await fetch_trending()
         if not trending:
@@ -1910,13 +1874,10 @@ class FaselHDApp:
         table = Table(title="Trending Now", title_style="bold magenta",
                        border_style="dim", show_lines=False, pad_edge=False)
         table.add_column("#", style="blue", justify="center", width=4)
-        table.add_column("", width=3)  # icon column
         table.add_column("Title", style="white", min_width=30)
-        table.add_column("Category", style="dim", justify="right")
 
         for idx, (title, url) in enumerate(trending, 1):
-            icon, cat_label = _extract_category(url)
-            table.add_row(str(idx), icon, title, cat_label)
+            table.add_row(str(idx), title)
 
         console.print(table)
         console.print("[dim]Pick a number, or press Enter to go back.[/dim]")
