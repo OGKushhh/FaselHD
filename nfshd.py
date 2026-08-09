@@ -87,11 +87,10 @@ import json
 import time
 import asyncio
 import logging
-from pathlib import Path
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, unquote
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeRemainingColumn, ProgressColumn
+from rich.progress import Progress, TextColumn, TimeRemainingColumn, ProgressColumn
 from rich.text import Text
 from rich.table import Table
 from rich.panel import Panel
@@ -452,8 +451,7 @@ def launch_mini_player(m3u8_url, title=""):
 
 # ===================== Setup: ffmpeg (auto-download on first run) + Chromium via Playwright =====================
 
-_FFMPEG_VERSION = "7.1"
-_FFMPEG_URL = f"https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essential.zip"
+_FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essential.zip"
 _FFMPEG_EXE_NAME = "ffmpeg.exe"
 
 def _get_ffmpeg_dir():
@@ -843,19 +841,6 @@ async def extract_episodes(season_url):
             seen.add(norm)
             unique.append(link)
     return unique
-
-async def extract_movie_links(movie_url):
-    """Check if a movie page has a player iframe. Returns [url] or []."""
-    try:
-        resp = await get_website_safe(movie_url)
-        if not resp:
-            return []
-        soup = BeautifulSoup(resp.text, "html.parser")
-        iframe = soup.find("iframe", attrs={"name": "player_iframe"})
-        return [movie_url] if iframe else []
-    except Exception as e:
-        console.print(f"[red]Error extracting movie links: {e}[/red]")
-        return []
 
 
 # ===================== Trending / Popular movies from homepage =====================
@@ -1314,8 +1299,7 @@ class FaselHDApp:
         return master_url
 
     async def _search_and_select(self):
-        """Search + display results with category metadata + select.
-        Returns False if user wants to exit."""
+        """Search + display results. Returns False if user wants to exit."""
         query = console.input("\n[cyan]Enter the name (or [red]exit[/red] to quit)[red]:[/red] ")
         if query.lower() == 'exit':
             return False
@@ -1416,13 +1400,7 @@ class FaselHDApp:
             download_url = actual_url
             output_path = os.path.expanduser(f"~/Downloads/{movie_name}_{quality}.mp4")
             ffmpeg_path = ensure_ffmpeg()
-            downloadm3u8_path = None
-            if os.path.isfile("downloadm3u8.exe"):
-                downloadm3u8_path = "downloadm3u8.exe"
-
-            if downloadm3u8_path:
-                command = [downloadm3u8_path, '-o', output_path, download_url]
-            elif ffmpeg_path:
+            if ffmpeg_path:
                 command = [
                     ffmpeg_path, '-i', download_url,
                     '-c', 'copy', '-bsf:a', 'aac_adtstoasc',
@@ -1597,12 +1575,7 @@ class FaselHDApp:
                     output_path = os.path.expanduser(f"~/Downloads/{video_name}_{ep_quality}.mp4")
                     ffmpeg_path = ensure_ffmpeg()
                     dl_tool = None
-                    if os.path.isfile("downloadm3u8.exe"):
-                        dl_tool = "downloadm3u8.exe"
-
-                    if dl_tool:
-                        cmd = [dl_tool, '-o', output_path, dl_url]
-                    elif ffmpeg_path:
+                    if ffmpeg_path:
                         cmd = [ffmpeg_path, '-i', dl_url, '-c', 'copy', '-bsf:a', 'aac_adtstoasc',
                                '-progress', 'pipe:1', '-y', output_path]
                     else:
