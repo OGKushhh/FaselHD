@@ -1,6 +1,6 @@
 <h1 align="center">
   <br>
-  <img src="https://github.com/OGKushhh/FaselHD/raw/main/scr/icon.ico" width="100">
+  <img src="https://github.com/OGKushhh/FaselHD/blob/main/src/icon.ico" width="100">
   <br>
   FaselHD
   <br>  
