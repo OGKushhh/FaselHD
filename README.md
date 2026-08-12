@@ -8,17 +8,17 @@
 <p align="center">
   <a href="https://t.me/De3vil_3">
      <img src="https://img.shields.io/badge/De3vil_3-blue?style=for-the-badge&logo=Telegram&logoColor=00AEFF&labelColor=black&color=black">
-</a>
+  </a>
   <a href="https://www.facebook.com/De3vil.3">
      <img src="https://img.shields.io/badge/De3vil.3-blue?style=for-the-badge&logo=Facebook&logoColor=00AEFF&labelColor=black&color=black">
   </a>
-</a>
   <a href="https://x.com/De3vil0">
      <img src="https://img.shields.io/badge/De3vil0-blue?style=for-the-badge&logo=x&logoColor=00AEFF&labelColor=black&color=black">
   </a>
-
+</p>
 <p align="center">
-  <img src="https://img.shields.io/badge/Author-De3vil-orange">
+  <img src="https://img.shields.io/badge/Original%20Author-De3vil-orange">
+  <img src="https://img.shields.io/badge/Fork%20Maintainer-Abdo-blue">
   <img src="https://img.shields.io/badge/Written%20In-Python-blue?style=flat-square">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey?style=flat-square">
 </p>
@@ -99,18 +99,28 @@ python nfshd.py
 > **Note:** `playwright install chromium` downloads the Chromium browser needed for video stream extraction. This only needs to be done once. ffmpeg is downloaded automatically on first use.
 
 ***
-<h4> Abdulrahman Mohammed </h4>
+<h4> Original Author — Abdulrahman Mohammed (De3vil) </h4>
   <a href="https://t.me/De3vil_3">
      <img src="https://img.shields.io/badge/De3vil_3-blue?style=for-the-badge&logo=Telegram&logoColor=00AEFF&labelColor=black&color=black">
-</a>
+  </a>
   <a href="https://www.facebook.com/De3vil.3">
      <img src="https://img.shields.io/badge/De3vil.3-blue?style=for-the-badge&logo=Facebook&logoColor=00AEFF&labelColor=black&color=black">
   </a>
-</a>
   <a href="https://x.com/De3vil0">
      <img src="https://img.shields.io/badge/De3vil0-blue?style=for-the-badge&logo=x&logoColor=00AEFF&labelColor=black&color=black">
   </a>
+  <br>
 
-If this tool has been useful for you, feel free to thank me by buying me a coffee :)
-[![Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/De3vil)
- [![B De3vil](https://img.shields.io/badge/$-support-ff69b4.svg?style=flat)](https://www.paypal.com/paypalme/De3vil01)
+  If this tool has been useful for you, feel free to support the original author:
+  <br>
+  [![Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/De3vil)
+  [![B De3vil](https://img.shields.io/badge/$-support-ff69b4.svg?style=flat)](https://www.paypal.com/paypalme/De3vil01)
+
+***
+<h4> Fork Maintainer — Abdo </h4>
+
+  If you find this fork useful, consider supporting me:
+  <br>
+  <a href="https://ko-fi.com/abdobest">
+    <img src="https://ko-fi.com/img/githubbutton_sm.svg">
+  </a>
