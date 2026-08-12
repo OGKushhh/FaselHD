@@ -17,39 +17,46 @@
      <img src="https://img.shields.io/badge/De3vil0-blue?style=for-the-badge&logo=x&logoColor=00AEFF&labelColor=black&color=black">
   </a>
 
-
-
 <p align="center">
   <img src="https://img.shields.io/badge/Author-De3vil-orange">
   <img src="https://img.shields.io/badge/Written%20In-Python-blue?style=flat-square">
+  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey?style=flat-square">
 </p>
 
-
 ### Description
-This script searches and extracts video links `movies` or `series episodes` from FaselHD using `Playwright` and `BeautifulSoup.` 
-It also provides a real-time progress bar via `rich` to track downloads and display the download status neatly.
+A powerful CLI tool that searches, browses, and streams movies and series from FaselHD. Features automatic Cloudflare bypass, real-time quality detection from m3u8 master playlists, concurrent episode downloads, and multiple playback options including a built-in mini player.
 
 ### Features
-- **Comprehensive Downloading Capability:**  
-  Designed to download both movies and TV series seamlessly.
 
-- **Concurrent Episode Downloads:**  
-  Supports simultaneous downloading of multiple episodes, improving efficiency and saving time.
-  
-- **Multiple Video Quality Options:**  
-  Supports downloading videos in various qualities `1080p, 720p, 360p` and verifies the availability of the selected quality.
-  
-- **Interactive Command Line Interface:**  
-  Provides a user-friendly CLI for searching TV series and movies, with easy selection of seasons and episodes.
-  
-- **Automatic ffmpeg Setup:**  
-  The program automatically downloads and extracts ffmpeg, updating the system PATH if it’s not already installed.
+- **Smart Cloudflare Bypass**  
+  Uses a persistent browser session with lazy detection — solves Cloudflare challenges only when needed, then reuses the session for fast subsequent requests. Falls back to curl_cffi with TLS fingerprint impersonation if scrapling is unavailable.
 
-- **Download Progress Display:**  
-  Uses the rich library to show progress bars and colorful notifications during video downloads.
+- **Real-Time Quality Detection**  
+  Parses m3u8 master playlists to detect actual available resolutions (240p–2160p) instead of guessing from URLs. Shows detected qualities before you choose.
 
-- **Automated Browser Session Management:**  
-    Manages browser sessions automatically to ensure efficient handling of search and extraction tasks.
+- **Download Movies & Series**  
+  Download movies or entire seasons with concurrent episode downloads (up to 3 parallel). Automatic retry on failure with progress tracking via rich.
+
+- **Stream to Any Player**  
+  Open streams directly in your preferred media player (VLC, PotPlayer, MPV, etc.) through the system "Open With" dialog.
+
+- **Built-in Mini Player**  
+  Stream directly inside FaselHD's embedded VLC-based mini player window — no external player needed.
+
+- **Copy to Clipboard**  
+  Copy the direct m3u8 stream URL to clipboard for use in any external player or tool.
+
+- **Browse Trending**  
+  Browse trending and recently added movies/series directly from the main page without searching.
+
+- **Search with Caching**  
+  Search results are cached for 5 minutes to avoid redundant page fetches when refining your selection.
+
+- **Automatic ffmpeg Setup**  
+  Auto-downloads ffmpeg on first run if not found in system PATH or imageio-ffmpeg cache. No manual setup required.
+
+- **Interactive CLI**  
+  Rich-powered terminal UI with colored tables, progress bars, and panels. Full Arabic/Unicode support on Windows with automatic console font and codepage configuration.
 
 ### Screenshots
 <table align="center">
@@ -75,25 +82,21 @@ It also provides a real-time progress bar via `rich` to track downloads and disp
   </tr>
 </table>
 
-
-
-### Installation:
-
-* You can download a copy of the executable `EXE` file and run it directly without having to install Python. Download it From here, [releases](https://github.com/De3vil/Faselhd/releases)
+### Installation
 
 #### Requirements
-* python >= 3.9 ++ Download [Python](https://www.python.org/ftp/python/3.8.10/python-3.8.10-amd64.exe](https://www.python.org/ftp/python/3.13.2/python-3.13.2-amd64.exe))
-
-
-* os : Windows
+- **Python 3.10+** — Download [Python](https://www.python.org/downloads/)
+- **OS:** Windows, Linux, or macOS
 
 ```bash
 git clone https://github.com/De3vil/Faselhd.git
 cd Faselhd
 pip install -r requirements.txt
+playwright install chromium
 python nfshd.py
 ```
 
+> **Note:** `playwright install chromium` downloads the Chromium browser needed for video stream extraction. This only needs to be done once. ffmpeg is downloaded automatically on first use.
 
 ***
 <h4> Abdulrahman Mohammed </h4>
@@ -107,7 +110,6 @@ python nfshd.py
   <a href="https://x.com/De3vil0">
      <img src="https://img.shields.io/badge/De3vil0-blue?style=for-the-badge&logo=x&logoColor=00AEFF&labelColor=black&color=black">
   </a>
-
 
 If this tool has been useful for you, feel free to thank me by buying me a coffee :)
 [![Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/De3vil)
